@@ -44,6 +44,11 @@ useEffect(() => {
  } 
  const handleNo = (id) => {
   setCheckedTodos(prev => prev.filter(todo => todo.id !== id))
+  setTodosList(prev => {
+      return prev.map((todo)=>{
+          return todo.id === id ? {...todo,check:!todo.check} : todo
+      })
+    })
  }
 
 
