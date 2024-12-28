@@ -1,9 +1,9 @@
 import React, { useState,useEffect } from 'react'
-import todos from "./Todos"
+
 import Todo from './Todo';
 const TodoList = () => {
 
-  const [todosList, setTodosList] = useState(todos);
+  const [todosList, setTodosList] = useState([]);
  const [add,setAdd] = useState(false);
  const [title,setTitle] = useState("");
 
@@ -18,7 +18,28 @@ useEffect(() => {
   const checkedIds = todosList.filter((todo) => todo.check).map((todo) => todo);
   console.log(checkedIds)
   setCheckedTodos(checkedIds);
+  fetch('http://localhost:5000/todos', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({todos: checkedIds})
+  })
 }, [todosList]);
+
+useEffect(() => {
+  const fetchTodos = async () => {
+     try {
+        const response = await fetch("http://localhost:5000/todos");
+        const data = await response.json();
+        setTodosList(data); // Update state with fetched data
+     } catch (error) {
+        console.error("Error fetching todos:", error);
+     }
+  };
+
+  fetchTodos();
+}, []);
 
   const handleAdd = () => {
     setAdd(prev => !prev);
@@ -27,8 +48,28 @@ useEffect(() => {
   const handleSubmit = (event) => {
     event.preventDefault();
     setTodosList(prev =>[ 
-      ...prev,{ id: prev.length + 1, text: title,check:false }
+      ...prev,{ id: prev.length + 2, text: title,check:false }
     ])
+    console.log(title)
+    fetch("http://localhost:5000/add", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text: title, id: todosList.length + 2}),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to add todo");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Response from server:", data);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
     setTitle("")
     setAdd(false)
  }  
@@ -40,8 +81,28 @@ useEffect(() => {
     })
  }
  const handleYes = (id) => {
-  setTodosList(prev => prev.filter(todo => todo.id !== id))
- } 
+  // Optimistically update the state before the server call
+  setTodosList((prev) => prev.filter((todo) => todo.id !== id));
+
+  fetch(`http://localhost:5000/delete/${id}`, {
+     method: "DELETE",
+  })
+     .then((response) => {
+        if (!response.ok) {
+           throw new Error("Failed to delete todo");
+        }
+        return response.json();
+     })
+     .then((data) => {
+        console.log("Todo deleted successfully:", data);
+     })
+     .catch((error) => {
+        console.error("Error deleting todo:", error);
+        // Optionally, revert the state if the server call fails
+        setTodosList((prev) => [...prev, todosList.find((todo) => todo.id === id)]);
+     });
+};
+
  const handleNo = (id) => {
   setCheckedTodos(prev => prev.filter(todo => todo.id !== id))
   setTodosList(prev => {
